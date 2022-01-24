@@ -12,7 +12,7 @@ map_size=32 -- in tiles
 
 pregame_time=1 	-- in sec
 turn_time=30			 -- in sec
-postturn_time=5 -- in sec
+postturn_time=1 -- in sec
 
 gameover=false
 winner=nil
@@ -313,6 +313,7 @@ function update_unit_physics(u)
 		u.idle_timer+=1/fps
 	else
 		u.idle_timer=0
+		u.idle=false
 	end
 	
 	if u.idle_timer>=0.1 then
@@ -386,13 +387,14 @@ end
 function create_dying_state()
 	return {
 		anim_t=0,
-		anim_dur=0.5,
+		anim_dur=0.25,
 		anim_start=17,
 		anim_frames=2,
 		expld_t=0,
-		expld_delay=1,
+		expld_delay=0.5,
 		enter=function(s,u)
 			u.f=s.anim_start
+			u.idle=false
 		end,
 		handle_input=noop,
 		update=function(s,u)
@@ -417,6 +419,8 @@ function create_dead_state()
 	return {
 		enter=function(s,u)
 			u.f=20
+			u.dead=true
+			u.idle=true
 		end,
 		handle_input=noop,
 		update=noop
@@ -443,10 +447,15 @@ end
 
 
 function kill(u)
-	u.dead=true
 	for t in all(game.teams) do
-		del(t.units, u)
-		printh("kill "..#t.units)
+		local deleted=del(t.units, u)
+		
+		-- adjust active unit index
+		if deleted and 
+					t.unit_id>#t.units 
+		then
+			t.unit_id=1
+		end
 	end
 end
 
@@ -512,14 +521,14 @@ function create_spawn_state()
 
 	local function handle_input(s,g)
 		if btnp(❎) then
-			return create_player_turn_state()
+			return create_player_turn_state(true)
 		end
 	end
 	
 	local function update(s,g)
 		g.timer-=1/fps
 		if g.timer<=0 then
-			return create_player_turn_state()
+			return create_player_turn_state(true)
 		end
 	end
 	
@@ -532,8 +541,20 @@ function create_spawn_state()
 end
 
 -- player turn
-function create_player_turn_state()
+function create_player_turn_state(first)
 	local function enter(s,g)
+	
+		if not first then
+				-- select next unit
+			local t=g.teams[g.team_id]
+			t.unit_id+=1
+			if (t.unit_id>#t.units) t.unit_id=1
+			
+						-- select next team
+			g.team_id+=1
+			if (g.team_id>#g.teams) g.team_id=1
+		end
+	
 		g.timer=turn_time
 		local t=g.teams[g.team_id]
 		local u=t.units[t.unit_id]
@@ -582,19 +603,20 @@ function create_post_turn_state()
 		g.unit.item=nil
 		
 		g.timer=postturn_time
-		
-		-- select next unit
-		local t=g.teams[g.team_id]
-		t.unit_id+=1
-		if (t.unit_id>#t.units) t.unit_id=1
-		
-		-- select next team
-		g.team_id+=1
-		if (g.team_id>#g.teams) g.team_id=1
 	end
 
 	local function update(s,g)
-		g.timer-=1/fps
+		-- wait for units to be stable
+		local stable=true
+		for e in all(ents) do
+			if e.idle==false then
+				stable=false
+			end
+		end
+		
+		if stable then
+			g.timer-=1/fps
+		end
 		if g.timer<=0 then
 			local gameover,winner=check_victory()
 			if not gameover then
