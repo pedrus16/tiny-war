@@ -254,7 +254,7 @@ function create_unit(x,y,col)
 	 inventory={
 	 	{id=48},
 			{id=49},
-			{id=50,ammo=1},
+			{id=50,ammo=3},
 			{id=51}
 	 },
 	 fired=false,
@@ -971,11 +971,9 @@ end
 
 function init_bullet_data()
 
-	function noop() end
-
 	bullets={
 		bazooka={
-			dmg=500,
+			dmg=50,
 			radius=3,
 			collision=explode,
 			detonate=noop,
@@ -1012,6 +1010,7 @@ function fire_bullet(key,spd,dir,a,x,y)
 	}
 	add(ents, bullet)
 	sfx(0,0)
+	bullet.emitter=emit(bullet.x,bullet.y,bullet.z,"smoke_trail")
 
 	return bullet
 end
@@ -1052,6 +1051,7 @@ end
 
 function explode(b)
 	del(ents, b)
+	del(ents, b.emitter)
 	b.vx=0 b.vy=0 b.vz=0
 	b.killed=true
 	sfx(-1,0)
@@ -1106,6 +1106,11 @@ function update_bullet(b)
 		b:collide({x=0,y=0,z=1})
 	end
 	
+	b.emitter.x=b.x
+	b.emitter.y=b.y
+	b.emitter.z=b.z
+	b.emitter:update()
+	
 	if b.fuse!=nil then
 		if (b.fuse>0)	b.fuse-=1/fps
 		if (b.fuse<=0) b:detonate()
@@ -1159,11 +1164,15 @@ end
 -->8
 -- utils
 
+function noop() end
+
+
 function is_moving(e)
 	return e.vx!=0 or 
 								e.vy!=0 or 
 								e.vz!=0
 end
+
 
 function move(e)
 	e.x+=e.vx/fps
@@ -1171,17 +1180,117 @@ function move(e)
 	e.z+=e.vz/fps
 end
 
-function noop() end
+function scrn_xy(x,y,z)
+	return x*8,(y-z)*8
+end
+
+
+
+-->8
+-- particles
+
+particles={
+	smoke_trail={
+		emit="continuous",
+		rate=0.1,
+		colors={7,6,6,6,6,6,6},
+		radius={2,6},
+		fill={█,▒,▒,░,░,░,░},
+		lifetime=1.5,
+	}
+}
+
+
+function create_particle(x,y,z,key)
+	local params=particles[key]
+	local p={
+		x=x,y=y,z=z,
+		key=key,
+		update=update_particle,
+		draw=draw_particle,
+		timer=0
+	}
+	
+	add(ents, p)
+	
+	return p
+end
+
+
+function update_particle(p)
+	local params=particles[p.key]
+	p.timer+=1/fps
+	
+	if p.timer>params.lifetime then
+		del(ents,p)
+	end
+	
+	-- interpolate values
+	local r=p.timer/params.lifetime
+	-- fill pattern
+	local n=#params.fill
+	local i=flr(r*n)+1
+	p.fill=params.fill[i]
+	-- radius
+	local d=params.radius[2]-params.radius[1]
+	i=r*d
+	p.radius=params.radius[1]+i
+	-- color
+	n=#params.colors
+	i=flr(r*n)+1
+	p.color=params.colors[i]
+end
+
+
+function draw_particle(p)
+	local params=particles[p.key]
+	fillp(p.fill)
+	circfill(
+		p.x*8,(p.y-p.z)*8,
+		p.radius,
+		p.color
+	)
+	fillp()
+end
+
+
+function emit(x,y,z,key)
+	local e={
+		key=key,
+		x=x,y=y,z=z,
+		update=update_emitter,
+		draw=noop,
+		timer=0
+	}
+	
+	add(ents,e)
+	
+	create_particle(e.x,e.y,e.z,e.key)
+	
+	return e
+end
+
+
+
+function update_emitter(e)
+	local params=particles[e.key]
+	e.timer+=1/fps
+	
+	if e.timer>=params.rate then
+		e.timer=params.rate-e.timer -- reset timer
+		create_particle(e.x,e.y,e.z,e.key)
+	end
+end
 
 __gfx__
 000000000000dd000000dd00000ddd000000dd000000dd0000000000000000000000000000000000000000003333333333333333339933333333333333333333
 00000000000fff00000fff00000fff00000fff00f00fff0f000000000000000000000000000000000000000033b3333333333333339a39933333333333b33333
 007007000001f100000fff00000f1ff00001f100d001f10d00000000000000000000000000000000000000003b333b333333b33333377a93333333333b333b33
-000770000d5fffd00d5dd5d00d5fff000d5fffd00d5f2fd000000000000000000000000000000000000000003333b3333b33b33339a77333333333333333b333
-00077000f05dd50ff05dd50ff05dd5dff05dd50f005d25000000000000000000000000000000000000000000333b333b33b3b3b3399ba93333333333333b333b
-007007000055550000555500005555000055550000555500000000000000000000000000000000000000000033b333b333b333b3333b99333333333333b333b3
-0000000000dddd0000dddd0000dddd0000dddd000dddddd0000000000000000000000000000000000000000033333b3333333333333b33333333333333333b33
-0000000000d00d0000d00d0000d00d00000dd0000000000000000000000000000000000000000000000000003333333333333333331b33333333333333333333
+000770000d5fffd00d5dd5d00d5fff000d5fffd00d5f2fd00000dd00000000000000000000000000000000003333b3333b33b33339a77333333333333333b333
+00077000f05dd50ff05dd50ff05dd5dff05dd50f005d2500000fff0000000000000000000000000000000000333b333b33b3b3b3399ba93333333333333b333b
+0070070000555500005555000055550000555500005555000001f1000000000000000000000000000000000033b333b333b333b3333b99333333333333b333b3
+0000000000dddd0000dddd0000dddd0000dddd000dddddd0005fff000000000000000000000000000000000033333b3333333333333b33333333333333333b33
+0000000000d00d0000d00d0000d00d00000dd0000000000007777770000000000000000000000000000000003333333333333333331b33333333333333333333
 000000000000dd000000000000000000000000000000000000000000000000000000000000000000000000000000cc0000008800cccccccccccccccccccccccc
 00000000000fff00000000000000000000000000000000000000000000000000000000000000000000000000000fff00000fff00ccccccccccc777cccccccccc
 000000000001f1000000dd0000000000000000000000000000000000000000000000000000000000000000000001f1000001f100cccccccccc7ccc7ccccccccc
