@@ -60,6 +60,8 @@ function _update60()
 	for e in all (ents) do
 		e:update()
 	end
+	-- depth sort
+	heapsort(ents,by_depth)
 
 	update_camera()
 end
@@ -220,13 +222,12 @@ function create_unit(x,y,col)
 	
 	
 	local function draw(u)
-		local x=u.x*8
-		local y=u.y*8
-		local z=u.z*8
+		local x,y=scrn_xy(u.x,u.y,u.z)
+		local sx,sy=scrn_xy(u.x,u.y,0)
 		pal(13, u.col)
-		ovalfill(x-2,y-1,x+2,y+1,5)
+		ovalfill(sx-2,sy-1,sx+2,sy+1,5)
 		spr(u.f,
-		 x-4,y-8-z,
+		 x-4,y-8,
 		 1,1, u.dx==-1
 		)
 		pal()
@@ -234,7 +235,7 @@ function create_unit(x,y,col)
 		-- draw hp
 		if menu.open then
 			local hp=tostr(u.hp)
-			print(hp,x-#hp*2,y-14-z,7)
+			print(hp,x-#hp*2,y-14,7)
 		end
 	end
 
@@ -746,8 +747,7 @@ function draw_aim(item,u)
 	-- direction arrow
 	local dir=0
 	if (u.dir!=nil) dir=u.dir/360
-	local x=u.x*8
-	local y=u.y*8
+	local x,y=scrn_xy(u.x,u.y,u.z)
 	draw_dir_arrow(dir,x,y)
 end
 
@@ -878,94 +878,6 @@ function create_skip()
 	}
 end
 
-
---function update_bazooka(item,u)
---	if u.bullet and u.bullet.killed then
---		u.bullet=nil
---		end_turn()
---	end
---
---	if (not u.active) return
---	
---	handle_input_aim(u)
---
---	if btnp(❎) and u.z==0 and not u.bullet then
---		local b=fire_bullet(
---			"bazooka",
---			15,
---			u.dir/360,
---			u.angle/360,
---			u.x,u.y
---		)
---		target=b
---		u.bullet=b
---		u.active=false
---	end
---end
-
-
-
---function draw_ui_bazooka(item,u)
---	draw_angle_quadrant(u)
---	
---	?"⬅️➡️ turn",64-8*2,112,7
---	?"❎ fire",64-7*2,120,7
---end
-
-
---function draw_ui_grenade(item,u)
---	draw_angle_quadrant(u)
---	
---	?"⬅️➡️ turn",64-8*2,112,7
---	?"❎ fire, ❎ detonate",64-20*2,120,7
---end
-
-
---function update_grenade(item, u)
---	if btnp(❎) and u.bullet then
---		u.bullet:detonate()
---	end
---	
---	if u.bullet and u.bullet.killed then
---		u.bullet=nil
---		end_turn()
---	end
---	
---	if (not u.active) return
---	
---	handle_input_aim(u)
---	
---	if btnp(❎) and u.z==0 then
---		local b=fire_bullet(
---			"grenade",
---			15,
---			u.dir/360,
---			u.angle/360,
---			u.x,u.y
---		)
---		target=b
---		u.bullet=b
---		u.active=false
---		tmr=b.fuse
---	end
---end
-
-
---function update_skip(item, u)
---	if (not u.active) return
---
---	if btnp(❎) then
---		end_turn()
---	else
---		handle_move(u) -- allow move
---	end
---end
---
---
---function draw_ui_skip(item, u)
---	?"❎ skip turn",64-12*2,120,7
---end
-
 -->8
 -- bullet
 
@@ -1069,12 +981,15 @@ function create_explosion(p,radius,dmg)
 	end
 	
 	local function draw_explosion(e)
+		local x,y=scrn_xy(
+			e.x-e.size/2,
+			e.y-e.size/2,e.z)
 		spr(e.begin+flr(e.f)*2, 
-			(e.x-e.size/2)*8,
-			(e.y-e.z-e.size/2)*8,
-			2,2)
+			x,y,2,2)
+			
+		x,y=scrn_xy(e.x,e.y,e.z)
 		fillp(▒)
-		circ(e.x*8,(e.y-e.z)*8,e.r*8,7)
+		circ(x,y,e.r*8,7)
 		fillp()
 	end
 	
@@ -1107,7 +1022,7 @@ function update_bullet(b)
 	end
 	
 	b.emitter.x=b.x
-	b.emitter.y=b.y
+	b.emitter.y=b.y-0.1
 	b.emitter.z=b.z
 	b.emitter:update()
 	
@@ -1119,16 +1034,15 @@ end
 
 
 function draw_bullet(b)
-	local x=b.x*8
-	local y=b.y*8
-	local z=b.z*8
-	ovalfill(x-2,y-1,x+2,y+1,5)
+	local x,y=scrn_xy(b.x,b.y,b.z)
+	local sx,sy=scrn_xy(b.x,b.y,0)
+	ovalfill(sx-2,sy-1,sx+2,sy+1,5)
 	spr(b.frame,
-	x-4,y-4-z,1,1)
+	x-4,y-4,1,1)
 	
 	if b.fuse!=nil then
 		local txt=tostr(ceil(b.fuse))
-		?txt,x-#txt*2,y-12-z,7
+		?txt,x-#txt*2,y-12,7
 	end
 end
 -->8
@@ -1180,10 +1094,53 @@ function move(e)
 	e.z+=e.vz/fps
 end
 
+
 function scrn_xy(x,y,z)
 	return x*8,(y-z)*8
 end
 
+
+function by_depth(a,b)
+	return a.y-b.y
+end
+
+
+function heapsort(t, cmp)
+ local n = #t
+ local i, j, temp
+ local lower = flr(n / 2) + 1
+ local upper = n
+ while 1 do
+  if lower > 1 then
+   lower -= 1
+   temp = t[lower]
+  else
+   temp = t[upper]
+   t[upper] = t[1]
+   upper -= 1
+   if upper == 1 then
+    t[1] = temp
+    return
+   end
+  end
+
+  i = lower
+  j = lower * 2
+  while j <= upper do
+   if j < upper and cmp(t[j], t[j+1]) < 0 then
+    j += 1
+   end
+   if cmp(temp, t[j]) < 0 then
+    t[i] = t[j]
+    i = j
+    j += i
+   else
+    j = upper + 1
+   end
+  end
+  t[i] = temp
+ end
+end
 
 
 -->8
@@ -1194,7 +1151,7 @@ particles={
 		emit="continuous",
 		rate=0.1,
 		colors={7,6,6,6,6,6,6},
-		radius={2,6},
+		radius={1.5,6},
 		fill={█,▒,▒,░,░,░,░},
 		lifetime=1.5,
 	}
@@ -1244,12 +1201,9 @@ end
 
 function draw_particle(p)
 	local params=particles[p.key]
+	local x,y=scrn_xy(p.x,p.y,p.z)
 	fillp(p.fill)
-	circfill(
-		p.x*8,(p.y-p.z)*8,
-		p.radius,
-		p.color
-	)
+	circfill(x,y,p.radius,p.color)
 	fillp()
 end
 
