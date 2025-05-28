@@ -154,7 +154,10 @@ function menu:handle_input(u)
 		local l=sqrt(dx*dx+dy*dy)
 		if (l>0)	dx/=l	dy/=l
 
-		
+		local view_distance = 8
+		main_camera.offset.x = dx * view_distance
+		main_camera.offset.y = dy * view_distance
+
 
 	else
 		if (btnp(🅾️)) self.open=true
@@ -452,7 +455,7 @@ end
 
 
 function take_damage(u,amount)
-	target=u
+	main_camera.target=u
 	u.hp=max(0,u.hp-amount)
 	if (u.hp<=0) u:kill()
 end
@@ -571,7 +574,7 @@ function create_player_turn_state(first)
 		local t=g.teams[g.team_id]
 		local u=t.units[t.unit_id]
 		g.unit=u
-		target=g.unit
+		main_camera.target=g.unit
 	end
 
 	local function handle_input(s,g)
@@ -772,7 +775,7 @@ function create_bazooka()
 				u.angle/360,
 				u.x,u.y
 			)
-			target=b
+			main_camera.target=b
 			item.bullet=b
 			item.fired=true
 			u:consume_ammo(item.k)
@@ -820,7 +823,7 @@ function create_hand_grenade()
 					u.angle/360,
 					u.x,u.y
 				)
-				target=b
+				main_camera.target=b
 				item.bullet=b
 				item.fired=true
 				game.timer=b.fuse
@@ -1052,32 +1055,44 @@ function draw_bullet(b)
 	end
 end
 -->8
--- camera
 
-target=nil
-cx=16
-cy=16
-cspd=20
+-- camera
+main_camera={
+	target=nil,
+	x=16,
+	y=16,
+	speed=16,
+	offset={
+		x=0,
+		y=0
+	}
+}
 
 
 function draw_camera()
-	camera(cx*8-64,cy*8-64)	
+	camera(main_camera.x*8-64,main_camera.y*8-64)	
 end
 
 
 function update_camera()
-	if target then
-		local tx=target.x
-		local ty=target.y
-		if abs(tx-cx)<.125 then
-			cx=tx
-		else
-			cx+=(tx-cx)/fps*cspd
+	if main_camera.target then
+		local tx=main_camera.target.x
+		local ty=main_camera.target.y
+		
+		if menu.open then
+			tx += main_camera.offset.x
+			ty += main_camera.offset.y
 		end
-		if abs(ty-cy)<.125 then
-			cy=ty
+
+		if abs(tx-main_camera.x)<.125 then
+			main_camera.x=tx
 		else
-			cy+=(ty-cy)/fps*cspd
+			main_camera.x+=(tx-main_camera.x)/fps*main_camera.speed
+		end
+		if abs(ty-main_camera.y)<.125 then
+			main_camera.y=ty
+		else
+			main_camera.y+=(ty-main_camera.y)/fps*main_camera.speed
 		end
 	end
 end
