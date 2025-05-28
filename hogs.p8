@@ -21,7 +21,6 @@ ents={} -- entities
 
 function _init()
 	init_bullet_data()
-	init_item_data()
 	game:init()
 	
 	local function spawn_unit(x,y,k)
@@ -81,7 +80,7 @@ function _draw()
 		e:draw()
 	end
 	
-	if game.unit and game.unit.item 
+	if game.unit and game.unit.item and not menu.open
 	then
 		game.unit.item:draw(game.unit)
 		camera()
@@ -106,7 +105,7 @@ function _draw()
 	end
 
 	
-	if not game.over	then
+	if not game.over then
 		camera()
 		local val=max(0,ceil(game.timer))
 		local txt=tostr(val).."s"
@@ -127,24 +126,35 @@ menu={
 }
 
 function menu:handle_input(u)
-	if self.open	then
+	if self.open then
 		local i=self.index
 	
-		if btnp(🅾️) or btnp(❎) then
-			local item=u.inventory[i]
-			u.item=items[item.id]
+		-- confirm
+		if btnp(❎) then
+			u.item=u.inventory[i].item
 			self.open=false
 			return
 		end
 		
-		if btnp(⬅️) and i>1 then
-			self.index-=1
-		end
-		
+		-- cycle through inventory
 		local size=#u.inventory
-		if btnp(➡️) and i<size then
-			self.index+=1
+		if btnp(🅾️) then
+			self.index = i < size and self.index + 1 or 1
 		end
+
+		-- move camera
+		local dx=0
+		local dy=0
+		if (btn(⬅️)) dx-=1 u.dx=-1
+		if (btn(➡️)) dx+=1 u.dx= 1
+		if (btn(⬆️)) dy-=1 u.dy=-1
+		if (btn(⬇️)) dy+=1 u.dy= 1
+		
+		-- normalize dir
+		local l=sqrt(dx*dx+dy*dy)
+		if (l>0)	dx/=l	dy/=l
+
+		
 
 	else
 		if (btnp(🅾️)) self.open=true
@@ -179,20 +189,28 @@ function menu:draw(u)
 		
 		-- items sprites
 		for i=0,n-1 do
-			local item=u.inventory[i+1]
-			spr(item.id,2+i*w,2)
-			if item.ammo then
-				?item.ammo,8+i*w,6
+			local slot = u.inventory[i+1]
+			local item = slot.item
+			local sprite = 48
+			if (item) sprite = item.k
+			spr(sprite,2+i*w,2)
+			if slot.ammo then
+				?slot.ammo,8+i*w,6
 			end
 		end
 		
 		-- caption
-		local i=u.inventory[self.index]
-		local item=items[i.id]
+		local slot=u.inventory[self.index]
+		local item = slot.item
 		local txt="move"
 		if (item) txt=item.text
-		if (i.ammo) txt=txt.." x"..i.ammo
+		if (slot.ammo) txt=txt.." x"..slot.ammo
 		?txt,0,14,7
+
+		-- user help
+		camera(0, 0)
+		?"🅾️ next item",64-11*2,112,7
+		?"❎ confirm",64-10*2,120,7
 	end
 end
 
@@ -211,7 +229,7 @@ function create_unit(x,y,col)
 	
 	
 	local function update(u)
-		if (u.item)	u.item:update(u)
+		if (u.item) u.item:update(u)
 		
 		local s=u.state:update(u)
 		if s then
@@ -253,10 +271,10 @@ function create_unit(x,y,col)
 	 state=create_standing_state(),
 	 item=nil,
 	 inventory={
-	 	{id=48},
-			{id=49},
-			{id=50,ammo=3},
-			{id=51}
+		{item=nil},
+		{item=create_bazooka()},
+		{item=create_hand_grenade(), ammo=3},
+		{item=create_skip()}
 	 },
 	 fired=false,
 	 handle_input=handle_input,
@@ -423,7 +441,7 @@ end
 
 function consume_ammo(u, id)
 	for i in all(u.inventory) do
-		if i.id==id and i.ammo then
+		if i and i.k==id and i.ammo then
 			i.ammo-=1
 			if i.ammo<=0 then
 				del(u.inventory, i)
@@ -661,18 +679,6 @@ function check_victory()
 	return gameover,winner
 end
 -->8
--- items
-
-function init_item_data()
-
-	items={
-		[49]=create_bazooka(),
-	 [50]=create_hand_grenade(),
-		[51]=create_skip()
-	}
-
-end
-
 
 function handle_input_aim(u)
 	local angle_ac=1
@@ -845,13 +851,13 @@ function create_hand_grenade()
 	end
 	
 	return {
-	 k=50,
- 	text="hand grenade",
- 	handle_input=handle_input,
- 	update=update,
- 	draw=draw_aim,
- 	draw_ui=draw_ui
- }
+		k=50,
+		text="hand grenade",
+		handle_input=handle_input,
+		update=update,
+		draw=draw_aim,
+		draw_ui=draw_ui
+	}
 end
 
 -- skip
@@ -1082,9 +1088,7 @@ function noop() end
 
 
 function is_moving(e)
-	return e.vx!=0 or 
-								e.vy!=0 or 
-								e.vz!=0
+	return e.vx!=0 or e.vy!=0 or e.vz!=0
 end
 
 
