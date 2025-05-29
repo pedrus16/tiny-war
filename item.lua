@@ -14,6 +14,8 @@ function handle_input_aim(u)
 	if (btn(⬅️)) u.dir+=dir_ac
 	if (btn(➡️)) u.dir-=dir_ac
 	u.dir=u.dir%360
+
+	main_camera.angle = u.dir + 45
 end
 
 
