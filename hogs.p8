@@ -88,8 +88,8 @@ function _draw()
 	draw_camera()
 	
 	-- draw the whole map (128⁙32)
-	map(0,0,0,0,map_size,map_size)
-	-- game_map:draw()
+	-- map(0,0,0,0,map_size,map_size)
+	game_map:draw()
 	
 	-- draw entities
 	for e in all (ents) do

@@ -7,8 +7,8 @@ function noop() end
 -- convert 3D map coords to screen coords
 function scrn_xy(x,y,z)
     local size = 8
-    local tilt = 1 -- 0.5
-    local angle = 0 -- + 0.125
+    local tilt = 0.5
+    local angle = 0 + 0.125
     local ca,sa = cos(angle), sin(angle)
     local ox = x * size * ca - y * size * sa
     local oy = x * size * sa + y * size * ca
