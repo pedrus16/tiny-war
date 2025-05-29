@@ -1,9 +1,19 @@
 -- Utils
 
+pi = 3.14159265359
+
 function noop() end
 
+-- convert 3D map coords to screen coords
 function scrn_xy(x,y,z)
-	return x*8,(y-z)*8
+    local size = 8
+    local tilt = 1 -- 0.5
+    local angle = 0 -- + 0.125
+    local ca,sa = cos(angle), sin(angle)
+    local ox = x * size * ca - y * size * sa
+    local oy = x * size * sa + y * size * ca
+    return ox, oy * tilt - z * size
+	-- return x*8,(y*0.5-z)*8
 end
 
 function move(e)

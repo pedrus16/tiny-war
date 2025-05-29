@@ -13,7 +13,8 @@ main_camera={
 
 
 function draw_camera()
-	camera(main_camera.x*8-64,main_camera.y*8-64)	
+	local x, y = scrn_xy(main_camera.x,main_camera.y, 0)
+	camera(x - 64, y - 64)
 end
 
 

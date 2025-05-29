@@ -53,6 +53,7 @@ function draw_angle_quadrant(u)
 	if (debug) ?flr(a*360),sx-16,sy-12,7
 end
 
+
 function draw_dir_arrow(dir,x,y)
 	local d=8 -- distance from unit
 	local l=6 -- arrow length
@@ -68,7 +69,7 @@ function draw_dir_arrow(dir,x,y)
 	if (debug) ?flr(dir*360),x,y,10
 end
 
-
+-- TODO Generate arrow coords in world then convert using scrn_xy
 function draw_aim(item,u)
 	-- direction arrow
 	local dir=0
